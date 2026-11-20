@@ -1,0 +1,22 @@
+http:
+  serversTransports:
+    my-insecure-transport:
+      insecureSkipVerify: true
+  services:
+    # Service definition for Home Assistant
+    homeassistant:
+      loadBalancer:
+        servers:
+          - url: "http://{{ vars.TRAEFIK_DYNAMIC_BACKEND_HOST }}:8123"
+
+    # Service definition for Homebridge
+    homebridge:
+      loadBalancer:
+        servers:
+          - url: "http://{{ vars.TRAEFIK_DYNAMIC_BACKEND_HOST }}:8581"
+
+    # Service definition for Music Assistant
+    musicassistant:
+      loadBalancer:
+        servers:
+          - url: "http://{{ vars.TRAEFIK_DYNAMIC_BACKEND_HOST }}:8095"

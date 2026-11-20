@@ -1,0 +1,116 @@
+service:
+  name: aac-traefik
+  image_repo: traefik
+  image_tag: v3.7
+  description: A modern HTTP reverse proxy and load balancer.
+  icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png
+  category: Traefik - Dashboards
+  hostname: '{{ service.name }}'
+  stage: prod
+ports:
+- name: web
+  port: 80
+  external_port: 80
+  protocol: TCP
+- name: websecure
+  port: 443
+  external_port: 443
+  protocol: TCP
+- name: dashboard
+  port: 8080
+  external_port: 28080
+  protocol: TCP
+config:
+  domain_name: example.com
+  dashboard_enabled: true
+  generate_hostname: false
+  integrations:
+    homepage:
+      enabled: true
+    autodns:
+      enabled: true
+      create_wildcard: true
+    traefik:
+      enabled: true
+      cert_resolver: ionos
+      entrypoint: websecure
+      service_port: 8080
+  acme_internal_ca:
+    enabled: false
+    resolver_name: internal-ca
+    ca_server: ''
+    email: ''
+    challenge: tls
+    root_ca_pem: ''
+  schema_version: 2
+secrets:
+  LOG_LEVEL: WARN
+  IONOS_API_KEY: CHANGE_ME
+  SOME_TEST_VAR: test-value
+volumes:
+  docker_sock:
+    type: bind
+    source: /var/run/docker.sock
+  data:
+    description: Für Let's Encrypt Zertifikate und ACME
+  log:
+    description: Traefik Access- und App-Logs
+  config:
+    description: Statische und dynamische Konfigurationsdateien
+  letsencrypt:
+    description: Let's Encrypt Zertifikate
+deployment_strategy:
+  main:
+    enabled: true
+    target_stage: prod
+  dev:
+    enabled: true
+    target_stage: dev
+  test:
+    enabled: false
+    target_stage: test
+  ansible-dev:
+    enabled: true
+    target_stage: dev
+  iac-dev:
+    enabled: true
+    target_stage: dev
+  template-dev:
+    enabled: true
+    target_stage: dev
+deployments:
+  docker_compose:
+    command:
+    - --configFile=/etc/traefik/traefik.yml
+    restart_policy: always
+    host_base_path: /export/docker
+    security_opt:
+    - no-new-privileges:true
+    volumes:
+    - docker_sock:/var/run/docker.sock:ro
+    - data:/data
+    - log:/log
+    - config:/etc/traefik
+    - letsencrypt:/letsencrypt
+    environment:
+      PUID: '{{ vars.PUID }}'
+      TZ: '{{ vars.TZ }}'
+      HOMEPAGE_WIDGET_SLUG: '{{ vars.HOMEPAGE_WIDGET_SLUG }}'
+      PGID: '{{ vars.PGID }}'
+      HOMEPAGE_WIDGET_TYPE: '{{ vars.HOMEPAGE_WIDGET_TYPE }}'
+      LOG_LEVEL: '{{ secrets.LOG_LEVEL }}'
+      IONOS_API_KEY: '{{ secrets.IONOS_API_KEY }}'
+      SOME_TEST_VAR: '{{ secrets.SOME_TEST_VAR }}'
+      LEGO_CA_CERTIFICATES: '{{ vars.LEGO_CA_CERTIFICATES }}'
+      LEGO_CA_SYSTEM_CERT_POOL: '{{ vars.LEGO_CA_SYSTEM_CERT_POOL }}'
+vars:
+  TRAEFIK_ACME_EMAIL: user@example.com
+  TRAEFIK_WILDCARD_DOMAIN: int.example.com
+  TRAEFIK_DYNAMIC_BACKEND_HOST: 192.0.2.10
+  LEGO_CA_CERTIFICATES: ''
+  LEGO_CA_SYSTEM_CERT_POOL: 'true'
+  PUID: '1000'
+  TZ: Europe/Berlin
+  HOMEPAGE_WIDGET_SLUG: traefik-dashboard
+  PGID: '1000'
+  HOMEPAGE_WIDGET_TYPE: traefik

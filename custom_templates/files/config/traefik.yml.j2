@@ -1,0 +1,95 @@
+# templates/config/traefik.yml.j2
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  format: common
+  level: {{ secrets.LOG_LEVEL | default('ERROR') | upper }}
+
+# Das Access-Log wird deaktiviert, um die Docker-Logs sauber zu halten.
+# Die Prometheus-Metriken sind davon nicht betroffen.
+# accessLog: {}
+
+api:
+  dashboard: true
+  debug: true
+  insecure: true
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+    addEntryPointsLabels: true
+    addServicesLabels: true
+    addRoutersLabels: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+  metrics:
+    address: ":8082"
+
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    watch: true
+    exposedByDefault: false
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+certificatesResolvers:
+  ionos:
+    acme:
+      email: {{ vars.TRAEFIK_ACME_EMAIL }}
+      storage: /letsencrypt/acme.json
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+      dnsChallenge:
+        provider: ionos
+        resolvers:
+          - 1.1.1.1:53
+          - 8.8.8.8:53
+
+  ionos-staging:
+    acme:
+      email: {{ vars.TRAEFIK_ACME_EMAIL }}
+      storage: /letsencrypt/acme-staging.json
+      caServer: https://acme-staging-v02.api.letsencrypt.org/directory
+      dnsChallenge:
+        provider: ionos
+        resolvers:
+          - 1.1.1.1:53
+          - 8.8.8.8:53
+{% set acme_int = config.acme_internal_ca | default({}) %}
+{% if acme_int.enabled | default(false) | string | lower == 'true' %}
+
+  # Private ACME CA (config.acme_internal_ca) — opt-in per router.
+  {{ acme_int.resolver_name | default('internal-ca') }}:
+    acme:
+{% if acme_int.email | default('') %}
+      email: {{ acme_int.email }}
+{% endif %}
+      storage: /letsencrypt/acme-{{ acme_int.resolver_name | default('internal-ca') }}.json
+      caServer: {{ acme_int.ca_server }}
+{% if (acme_int.challenge | default('tls')) == 'http' %}
+      httpChallenge:
+        entryPoint: web
+{% else %}
+      tlsChallenge: {}
+{% endif %}
+{% endif %}
+tls:
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /letsencrypt/acme-certs/wildcard.{{ vars.TRAEFIK_WILDCARD_DOMAIN }}.crt
+        keyFile: /letsencrypt/acme-certs/wildcard.{{ vars.TRAEFIK_WILDCARD_DOMAIN }}.key

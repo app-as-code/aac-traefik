@@ -1,0 +1,80 @@
+services:
+  # --- Main Application Service ---
+  aac-traefik:
+    image: "traefik:v3.7"
+    container_name: "aac-traefik"
+    hostname: "aac-traefik"
+    restart: "always"
+
+    command:
+      - "--configFile=/etc/traefik/traefik.yml"
+
+    environment:
+      PUID: "1000"
+      TZ: "Europe/Berlin"
+      HOMEPAGE_WIDGET_SLUG: "traefik-dashboard"
+      PGID: "1000"
+      HOMEPAGE_WIDGET_TYPE: "traefik"
+      LOG_LEVEL: "WARN"
+      IONOS_API_KEY: "${IONOS_API_KEY:?set IONOS_API_KEY in .env (see .env.example)}"
+      SOME_TEST_VAR: "test-value"
+      LEGO_CA_CERTIFICATES: ""
+      LEGO_CA_SYSTEM_CERT_POOL: "true"
+
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "28080:8080/tcp"
+
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "/export/docker/aac-traefik/data:/data"
+      - "/export/docker/aac-traefik/log:/log"
+      - "/export/docker/aac-traefik/config:/etc/traefik"
+      - "/export/docker/aac-traefik/letsencrypt:/letsencrypt"
+
+    networks:
+      - exposed
+      - interconnect
+      - secured
+      - stack_internal
+
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.aac-traefik.rule: "Host(`aac-traefik.example.com`)"
+      traefik.http.routers.aac-traefik.entrypoints: "websecure"
+      traefik.http.routers.aac-traefik.tls: "true"
+      traefik.http.routers.aac-traefik.tls.certresolver: "ionos"
+      traefik.docker.network: "services-secured"
+      traefik.http.services.aac-traefik.loadbalancer.server.port: "8080"
+      traefik.http.services.aac-traefik.loadbalancer.server.scheme: "http"
+      auto-dns.createWildcard.aac-traefik: "true"
+      auto-dns.customDNS.aac-traefik: "true"
+      auto-dns.customDOMAIN.aac-traefik: "example.com"
+      auto-dns.customHost.aac-traefik: "aac-traefik"
+      homepage.group: "Traefik - Dashboards"
+      homepage.name: "Traefik"
+      homepage.href: "https://aac-traefik.example.com"
+      homepage.icon: "https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/traefik.png"
+      homepage.description: "A modern HTTP reverse proxy and load balancer."
+
+
+    security_opt:
+    - no-new-privileges:true
+
+
+
+networks:
+  secured:
+    name: "services-secured"
+    external: true
+  exposed:
+    name: "services-exposed"
+    external: true
+  interconnect:
+    name: "docker-default"
+    external: true
+  stack_internal:
+    name: "aac-traefik_stack_internal"
+    driver: "bridge"
+
